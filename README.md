@@ -1,35 +1,3 @@
-<h1 align="center" style="color: orangered;">
-
-<img alt="" align="center" height="60" width="50" src="https://github.com/henryco/BlazeJump-Obsidian/blob/master/doc/logo.png?raw=true"> Leap for Obsidian</h1>
-
-<p align="center">
-    Leap is a plugin for <a href="https://obsidian.md">Obsidian</a> that makes text navigation blazingly fast. <br/>
-    This plugin is inspired by <a href="https://github.com/abo-abo/avy"> Emacs-Avy</a> and
-    <a href="https://github.com/Lokaltog/vim-easymotion"> Vim-EasyMotion</a>.
-</p>
-
-<div align="center">
-  <a href="https://github.com/henryco/BlazeJump-Obsidian/releases/latest">
-    <img src="https://img.shields.io/github/manifest-json/v/henryco/BlazeJump-Obsidian?color=crimson" alt="Manifest">
-  </a>
-
-  <a href="https://github.com/henryco/BlazeJump-Obsidian/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/henryco/BlazeJump-Obsidian" alt="License">
-  </a>
-
-  <a href="https://github.com/sponsors/henryco">
-    <img alt="GitHub Sponsors" src="https://img.shields.io/github/sponsors/henryco?color=purple">
-  </a>
-</div>
-
----
-
-<p align="center" style="background: black">
-  <img src="https://github.com/henryco/BlazeJump-Obsidian/blob/master/doc/s1.gif?raw=true" height="350" width="auto" alt="demo" align="center">
-</p>
-
----
-
 ### Features
 
 - Support for multiple keyboard layouts
@@ -42,7 +10,6 @@ Leap provides 3 navigation modes:
 
 - Jump to the beginning of the word
 - Jump to the beginning of the line
-- Jump to _any_ character (2-character search)
 
 #### Basic workflow:
 
@@ -54,23 +21,8 @@ Leap provides 3 navigation modes:
 
 <br/>
 
-#### **`Jump to the beginning of the line`**
+### Recent fixes
 
-<p align="center" style="background: black">
-  <img src="https://github.com/henryco/BlazeJump-Obsidian/blob/master/doc/line_s1.gif?raw=true" height="350" width="auto" alt="demo" align="center">
-</p>
-<br/>
-
-#### **`Jump to the beginning of the word`**
-
-<p align="center" style="background: black">
-  <img src="https://github.com/henryco/BlazeJump-Obsidian/blob/master/doc/s1.gif?raw=true" height="350" width="auto" alt="demo" align="center">
-</p>
-<br/>
-
-#### **`Jump to any character`**
-
-<p align="center" style="background: black">
-  <img src="https://github.com/henryco/BlazeJump-Obsidian/blob/master/doc/any2.gif?raw=true" height="350" width="auto" alt="demo" align="center">
-</p>
-<br/>
+- Fixed tag generation after 2-character search so jump labels continue to appear and can be narrowed.
+- Fixed decoration ordering issues that could hide all labels/highlights in some searches.
+- Improved rendering for inline code (`` `...` ``) so highlights and jump labels are shown more reliably.
