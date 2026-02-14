@@ -1,19 +1,24 @@
-import {MODE_TYPE, PulseStyle, SearchPosition, SearchStyle, state as inter_plugin_state} from "./src/commons";
-import {Editor, EditorPosition, MarkdownView, Notice, Plugin} from 'obsidian';
-import {EditorView, Rect} from "@codemirror/view";
-import {SearchTree} from "./src/search_tree";
-import {blaze_jump_view_plugin} from "./src/view"
-import {BlazeJumpPluginSettings, BlazeJumpSettingTab} from "./src/settings";
-import {provide_translations, Translations} from "./src/translations";
-import {provide_heuristic} from "./src/heuristics";
+import {
+    MODE_TYPE,
+    PulseStyle,
+    SearchPosition,
+    SearchStyle,
+    state as inter_plugin_state,
+} from "./src/commons";
+import { Editor, EditorPosition, MarkdownView, Notice, Plugin } from "obsidian";
+import { EditorView, Rect } from "@codemirror/view";
+import { SearchTree } from "./src/search_tree";
+import { blaze_jump_view_plugin } from "./src/view";
+import { BlazeJumpPluginSettings, BlazeJumpSettingTab } from "./src/settings";
+import { provide_translations, Translations } from "./src/translations";
+import { provide_heuristic } from "./src/heuristics";
 
 // noinspection DuplicatedCode,JSUnusedGlobalSymbols
 export default class BlazeJumpPlugin extends Plugin {
-
     private plugin_settings: BlazeJumpSettingTab;
 
-	private search_tree: SearchTree;
-	private mode?: MODE_TYPE = undefined;
+    private search_tree: SearchTree;
+    private mode?: MODE_TYPE = undefined;
     private current_char?: string = undefined;
 
     private override_recognize: boolean = false;
@@ -22,19 +27,19 @@ export default class BlazeJumpPlugin extends Plugin {
     private layout_cur: number = 0;
     private layout_num: number = 1;
 
-	private statusBar?: HTMLElement;
-	private layoutBar?: HTMLElement;
+    private statusBar?: HTMLElement;
+    private layoutBar?: HTMLElement;
 
-	private callback_provided_input: any;
-	private callback_start_search: any;
+    private callback_provided_input: any;
+    private callback_start_search: any;
     private callback_mouse_reset: any;
 
     private spellcheck?: string;
 
     private offset: number = 0;
 
-	private range_from: number;
-	private range_to: number;
+    private range_from: number;
+    private range_to: number;
 
     private get settings(): BlazeJumpPluginSettings {
         return this.plugin_settings.getSettings();
@@ -45,8 +50,12 @@ export default class BlazeJumpPlugin extends Plugin {
     }
 
     private async initialize() {
-        const layouts = [this.settings.keyboard_layout_main,
-            ...(this.settings.keyboard_layout_custom?.filter(x => x.trim() !== ''))];
+        const layouts = [
+            this.settings.keyboard_layout_main,
+            ...this.settings.keyboard_layout_custom.filter(
+                (x) => x.trim() !== "",
+            ),
+        ];
 
         this.layout_num = layouts.length;
         this.layout_cur = 0;
@@ -56,27 +65,32 @@ export default class BlazeJumpPlugin extends Plugin {
             provide_heuristic(this.settings.keyboard_heuristic),
             layouts,
             this.settings.keyboard_ignored,
-            this.settings.keyboard_depth
+            this.settings.keyboard_depth,
         );
 
         this.layoutSet(this.layout_cur);
     }
 
-	public async onload() {
+    public async onload() {
         try {
-            this.plugin_settings = await new BlazeJumpSettingTab(this.app, this).initialize();
+            this.plugin_settings = await new BlazeJumpSettingTab(
+                this.app,
+                this,
+            ).initialize();
             this.plugin_settings.setCallback(() => this.initialize());
 
             await this.initialize();
 
-            inter_plugin_state.state.style_provider = () => this.resolveSearchColor();
-            inter_plugin_state.state.pulse_provider = () => this.resolvePulseStyle();
+            inter_plugin_state.state.style_provider = () =>
+                this.resolveSearchColor();
+            inter_plugin_state.state.pulse_provider = () =>
+                this.resolvePulseStyle();
 
             inter_plugin_state.state.editor_callback = (view: EditorView) => {
-                if (view.visibleRanges.length <= 0)
-                    return;
+                if (view.visibleRanges.length <= 0) return;
                 this.range_from = view.visibleRanges[0].from;
-                this.range_to = view.visibleRanges[view.visibleRanges.length - 1].to;
+                this.range_to =
+                    view.visibleRanges[view.visibleRanges.length - 1].to;
             };
 
             this.registerEditorExtension(blaze_jump_view_plugin);
@@ -90,113 +104,139 @@ export default class BlazeJumpPlugin extends Plugin {
                 //     modifiers: ['Ctrl'],
                 //     key: '`',
                 // }]
-
             });
 
             this.addCommand({
                 id: "start",
                 name: this.lang.command_word_start,
-                editorCallback: (editor, ctx) => this.startAction(editor, ctx)
-            });
-
-            this.addCommand({
-                id: "end",
-                name: this.lang.command_word_end,
-                editorCallback: (editor, ctx) => this.endAction(editor, ctx)
+                editorCallback: (editor, ctx) => this.startAction(editor, ctx),
             });
 
             this.addCommand({
                 id: "any",
                 name: this.lang.command_any_char,
-                editorCallback: (editor, ctx) => this.anyAction(editor, ctx)
+                editorCallback: (editor, ctx) => this.anyAction(editor, ctx),
             });
 
             this.addCommand({
-                id: 'abort',
+                id: "abort",
                 name: this.lang.command_abort,
-                editorCallback: (editor) => this.resetAction(editor)
+                editorCallback: (editor) => this.resetAction(editor),
             });
 
             this.addCommand({
-                id: 'line',
+                id: "line",
                 name: this.lang.command_line_start,
-                editorCallback: (editor, ctx) => this.beginningAction(editor, ctx)
+                editorCallback: (editor, ctx) =>
+                    this.beginningAction(editor, ctx),
             });
 
             this.addCommand({
-                id: 'terminator',
-                name: this.lang.command_line_end,
-                editorCallback: (editor, ctx) => this.terminatorAction(editor, ctx)
-            });
-
-            this.addCommand({
-               id: 'layout',
-               name: this.lang.command_layout,
-               editorCallback: (editor, ctx) => this.layoutAction(editor, ctx)
+                id: "layout",
+                name: this.lang.command_layout,
+                editorCallback: (editor, ctx) => this.layoutAction(editor, ctx),
             });
         } catch (e) {
             console.error(e);
         } finally {
             this.addSettingTab(this.plugin_settings);
         }
-	}
+    }
 
-	public onunload() {
-		inter_plugin_state.state = {};
-		this.resetAction();
+    public onunload() {
+        inter_plugin_state.state = {};
+        this.resetAction();
         this.layoutClear();
-	}
+    }
 
     public redraw(editor?: Editor) {
-        this.app.workspace.getActiveViewOfType(MarkdownView)?.previewMode.rerender(true);
+        this.app.workspace
+            .getActiveViewOfType(MarkdownView)
+            ?.previewMode.rerender(true);
         if (inter_plugin_state.state.plugin_draw_callback)
             inter_plugin_state.state.plugin_draw_callback();
-        if (editor)
-            (editor as any)['cm'].dispatch();
+        if (editor) (editor as any)["cm"].dispatch();
     }
 
     private resolveStatusColor(): string {
-        return <string>(this.settings as any)[`status_color_${this.mode ?? this.settings.default_action}`];
+        return <string>(
+            (this.settings as any)[
+                `status_color_${this.mode ?? this.settings.default_action}`
+            ]
+        );
     }
 
     private resolveSearchColor(): SearchStyle {
-        const settings = <any> this.settings;
+        const settings = <any>this.settings;
         const st = this.resolveStatusColor();
         return {
             capitalize: this.settings.capitalize_tags_labels === true,
-            bg: settings[`search_color_bg_${this.mode ?? this.settings.default_action}`] ?? '#FFFFFF',
-            text: settings[`search_color_text_${this.mode ?? this.settings.default_action}`] ?? st,
-            border: settings[`search_color_border_${this.mode ?? this.settings.default_action}`] ?? st,
-            offset: this.offset
-        }
+            bg:
+                settings[
+                    `search_color_bg_${this.mode ?? this.settings.default_action}`
+                ] ?? "#FFFFFF",
+            text:
+                settings[
+                    `search_color_text_${this.mode ?? this.settings.default_action}`
+                ] ?? st,
+            border:
+                settings[
+                    `search_color_border_${this.mode ?? this.settings.default_action}`
+                ] ?? st,
+            offset: this.offset,
+            bright_dim: this.settings.search_bright_dim_enabled === true,
+        };
     }
 
     private resolvePulseStyle(): PulseStyle {
         return {
             duration: this.settings.search_jump_pulse_duration ?? 0.15,
-            bg: this.settings.search_jump_pulse_color ?? 'red'
+            bg: this.settings.search_jump_pulse_color ?? "red",
+        };
+    }
+
+    private statusSet(text: string | { text: string; color?: string }[]) {
+        this.statusClear();
+        this.statusBar = this.addStatusBarItem();
+
+        const container = this.statusBar.createEl("span", {
+            cls: "blaze-jump-status-bar",
+            attr: {
+                style: `
+            background-color: ${this.settings.status_color_bg ?? "#FFFFFF00"}; 
+            border: thin solid ${this.resolveStatusColor() ?? this.settings.status_color_fallback};
+            `,
+            },
+        });
+
+        if (typeof text === "string") {
+            container.createEl("span", {
+                text: `${text} `,
+                attr: {
+                    style: `color: ${this.resolveStatusColor() ?? this.settings.status_color_fallback};`,
+                },
+            });
+        } else {
+            text.forEach((segment) => {
+                container.createEl("span", {
+                    text: segment.text,
+                    attr: {
+                        style: segment.color
+                            ? `color: ${segment.color};`
+                            : `color: ${this.resolveStatusColor() ?? this.settings.status_color_fallback};`,
+                    },
+                });
+            });
+            container.createEl("span", { text: " " });
         }
     }
 
-    private statusSet(text: string) {
-		this.statusClear();
-		this.statusBar = this.addStatusBarItem();
-
-		this.statusBar.createEl("span", { text: `${text} `, cls: 'blaze-jump-status-bar', attr: {
-			style: `
-			background-color: ${this.settings.status_color_bg ?? '#FFFFFF00'}; 
-			border: thin solid ${this.resolveStatusColor() ?? this.settings.status_color_fallback};
-			color: ${this.resolveStatusColor() ?? this.settings.status_color_fallback};
-			`
-		}});
-	}
-
     private layoutSet(idx: number) {
-        const text = idx > 0 ? `${idx}` : 'M';
+        const text = idx > 0 ? `${idx}` : "M";
 
         if (!this.layoutBar) {
             this.layoutBar = this.addStatusBarItem();
-            this.layoutBar.addEventListener('click', () => this.layoutAction());
+            this.layoutBar.addEventListener("click", () => this.layoutAction());
         } else {
             const nodes = this.layoutBar.childNodes;
             for (let i = 0; i < nodes.length; i++) {
@@ -204,13 +244,16 @@ export default class BlazeJumpPlugin extends Plugin {
             }
         }
 
-        this.layoutBar.createEl("span", {text: text, cls: 'blaze-jump-layout-bar'});
+        this.layoutBar.createEl("span", {
+            text: text,
+            cls: "blaze-jump-layout-bar",
+        });
     }
 
     private statusClear() {
-		this.statusBar?.remove();
-		this.statusBar = undefined;
-	}
+        this.statusBar?.remove();
+        this.statusBar = undefined;
+    }
 
     private layoutClear() {
         this.layoutBar?.remove();
@@ -218,17 +261,19 @@ export default class BlazeJumpPlugin extends Plugin {
     }
 
     private toggleMode(_?: Editor) {
-		const mode_map = {
-			'start': 'end',
-			'end': 'any',
-			'any': 'start'
-		};
+        const mode_map = {
+            start: "end",
+            end: "any",
+            any: "start",
+        };
 
-		const mode = this.mode ? (mode_map as any)[this.mode] : this.settings.default_action;
-		this.resetAction();
+        const mode = this.mode
+            ? (mode_map as any)[this.mode]
+            : this.settings.default_action;
+        this.resetAction();
 
-		this.mode = <MODE_TYPE> mode;
-	}
+        this.mode = <MODE_TYPE>mode;
+    }
 
     private resetLayout() {
         this.layout_cur = this.layout_def;
@@ -237,8 +282,7 @@ export default class BlazeJumpPlugin extends Plugin {
 
     private toggleLayout(sign: number = 1) {
         this.layout_cur += sign;
-        if (this.layout_cur >= this.layout_num)
-            this.layout_cur = 0;
+        if (this.layout_cur >= this.layout_num) this.layout_cur = 0;
         if (this.layout_cur < 0) {
             this.layout_cur = this.layout_num - 1;
         }
@@ -248,23 +292,22 @@ export default class BlazeJumpPlugin extends Plugin {
     private toggleLineMode(left: boolean, _?: Editor) {
         const current_mode = this.mode;
         this.resetAction(_);
-        this.mode = left ? 'line' : 'terminator';
+        this.mode = left ? "line" : "terminator";
         return current_mode !== this.mode;
     }
 
     private toggleDim(active: boolean) {
-        if (!this.settings.search_dim_enabled)
-            return;
+        if (!this.settings.search_dim_enabled) return;
 
-        const style_id = 'dim-editor-style';
+        const style_id = "dim-editor-style";
         const existingStyle = document.getElementById(style_id);
         if (active) {
             if (!existingStyle) {
-                const style = document.createElement('style');
+                const style = document.createElement("style");
                 style.id = style_id;
                 style.textContent = `
                     .cm-content {
-                      ${this.settings.search_dim_style ?? ''}
+                      ${this.settings.search_dim_style ?? ""}
                     }
                 `;
                 document.head.appendChild(style);
@@ -272,11 +315,12 @@ export default class BlazeJumpPlugin extends Plugin {
         } else if (existingStyle) {
             existingStyle.remove();
         }
+        inter_plugin_state.state.bright_dim =
+            active && this.settings.search_bright_dim_enabled === true;
     }
 
     private toggleSpellcheck(active: boolean) {
-        if (!this.settings.search_spellcheck_disable)
-            return;
+        if (!this.settings.search_spellcheck_disable) return;
 
         const content = document.getElementsByClassName("cm-content");
         if (!content) return;
@@ -284,8 +328,7 @@ export default class BlazeJumpPlugin extends Plugin {
         for (let i = 0; i < content.length; i++) {
             const el = content[i];
             const spellcheck = el.getAttribute("spellcheck");
-            if (!spellcheck || spellcheck.trim() === "")
-                continue;
+            if (!spellcheck || spellcheck.trim() === "") continue;
 
             if (!active) {
                 this.spellcheck = spellcheck;
@@ -302,19 +345,18 @@ export default class BlazeJumpPlugin extends Plugin {
     }
 
     private pulseInit(active: boolean): void {
-        if (!this.settings.search_start_pulse)
-            return;
+        if (!this.settings.search_start_pulse) return;
 
-        const style_id = 'pulse-once-init';
+        const style_id = "pulse-once-init";
         const existingStyle = document.getElementById(style_id);
 
         if (!active && existingStyle) {
             existingStyle.remove();
-            return
+            return;
         }
 
         if (active && !existingStyle) {
-            const style = document.createElement('style');
+            const style = document.createElement("style");
             style.id = style_id;
             style.textContent = `                  
                     .cm-content {
@@ -328,19 +370,21 @@ export default class BlazeJumpPlugin extends Plugin {
     private jumpTo(editor: Editor, position: SearchPosition) {
         editor.setCursor(position.start);
 
-        if (!this.settings.search_jump_pulse)
-            return;
+        if (!this.settings.search_jump_pulse) return;
 
         inter_plugin_state.state.pointer = position;
         inter_plugin_state.state.positions = undefined;
 
         this.redraw(editor);
 
-        window.setTimeout(() => {
-            inter_plugin_state.state.pointer = undefined;
-            if (inter_plugin_state.state.plugin_draw_callback)
-                inter_plugin_state.state.plugin_draw_callback();
-        }, (this.settings.search_jump_pulse_duration ?? 0) * 1000);
+        window.setTimeout(
+            () => {
+                inter_plugin_state.state.pointer = undefined;
+                if (inter_plugin_state.state.plugin_draw_callback)
+                    inter_plugin_state.state.plugin_draw_callback();
+            },
+            (this.settings.search_jump_pulse_duration ?? 0) * 1000,
+        );
     }
 
     private resetAction(_?: Editor, full: boolean = true) {
@@ -355,8 +399,14 @@ export default class BlazeJumpPlugin extends Plugin {
 
             if (this.callback_mouse_reset) {
                 window.removeEventListener("click", this.callback_mouse_reset);
-                window.removeEventListener("contextmenu", this.callback_mouse_reset);
-                window.removeEventListener("auxclick", this.callback_mouse_reset);
+                window.removeEventListener(
+                    "contextmenu",
+                    this.callback_mouse_reset,
+                );
+                window.removeEventListener(
+                    "auxclick",
+                    this.callback_mouse_reset,
+                );
             }
 
             this.override_recognize = false;
@@ -365,18 +415,18 @@ export default class BlazeJumpPlugin extends Plugin {
             this.resetLayout();
         }
 
-		if (this.callback_start_search)
-			window.removeEventListener("keydown", this.callback_start_search);
-		if (this.callback_provided_input)
-			window.removeEventListener("keydown", this.callback_provided_input);
+        if (this.callback_start_search)
+            window.removeEventListener("keydown", this.callback_start_search);
+        if (this.callback_provided_input)
+            window.removeEventListener("keydown", this.callback_provided_input);
 
-		this.callback_provided_input = null;
-		this.callback_start_search = null;
+        this.callback_provided_input = null;
+        this.callback_start_search = null;
 
-		inter_plugin_state.state.positions = undefined;
+        inter_plugin_state.state.positions = undefined;
         inter_plugin_state.state.pointer = undefined;
-		inter_plugin_state.state.target = undefined;
-	}
+        inter_plugin_state.state.target = undefined;
+    }
 
     private layoutAction(_?: Editor, __?: any) {
         this.toggleLayout();
@@ -386,36 +436,24 @@ export default class BlazeJumpPlugin extends Plugin {
     private blazeAction(editor: Editor, _: any) {
         this.resetAction(editor, false);
         this.toggleMode(editor);
-		this.searchAction(editor);
-	}
+        this.searchAction(editor);
+    }
 
     private startAction(editor: Editor, _: any) {
         this.resetAction(editor);
-        this.mode = 'start';
-		this.searchAction(editor);
-	}
+        this.mode = "start";
+        this.searchAction(editor);
+    }
 
-	private endAction(editor: Editor, _: any) {
+    private anyAction(editor: Editor, _: any) {
         this.resetAction(editor);
-        this.mode = 'end';
-		this.searchAction(editor);
-	}
-
-	private anyAction(editor: Editor, _: any) {
-        this.resetAction(editor);
-        this.mode = 'any';
-		this.searchAction(editor);
-	}
+        this.mode = "any";
+        this.searchAction(editor);
+    }
 
     private beginningAction(editor: Editor, _: any) {
         this.resetAction(editor);
-        this.mode = 'line';
-        this.lineAction(editor);
-    }
-
-    private terminatorAction(editor: Editor, _: any) {
-        this.resetAction(editor);
-        this.mode = 'terminator';
+        this.mode = "line";
         this.lineAction(editor);
     }
 
@@ -424,6 +462,10 @@ export default class BlazeJumpPlugin extends Plugin {
         this.toggleSpellcheck(false);
         this.pulseInit(true);
         this.toggleDim(true);
+
+        const layout_idx = this.layout_cur;
+        inter_plugin_state.state.target =
+            this.search_tree.mid_layout_char(layout_idx);
 
         editor.blur();
 
@@ -455,7 +497,10 @@ export default class BlazeJumpPlugin extends Plugin {
                 editor.focus();
 
                 window.removeEventListener("click", callback_on_mouse_reset);
-                window.removeEventListener("contextmenu", callback_on_mouse_reset);
+                window.removeEventListener(
+                    "contextmenu",
+                    callback_on_mouse_reset,
+                );
                 window.removeEventListener("auxclick", callback_on_mouse_reset);
             } finally {
                 this.redraw(editor);
@@ -467,30 +512,36 @@ export default class BlazeJumpPlugin extends Plugin {
             event.preventDefault();
             event.stopPropagation();
 
-            if (event.which === 16 ||
+            if (
+                event.which === 16 ||
                 event.keyCode === 16 ||
-                `${event.key}`.toLowerCase() === 'shift'
+                `${event.key}`.toLowerCase() === "shift"
             ) {
                 this.callback_provided_input = callback_on_provided;
-                window.addEventListener('keydown', callback_on_provided, { once: true });
+                window.addEventListener("keydown", callback_on_provided, {
+                    once: true,
+                });
                 return;
             }
 
-            if (event.keyCode === 27 ||
+            if (
+                event.keyCode === 27 ||
                 event.which === 27 ||
-                `${event.key}`.toLowerCase() === 'escape' ||
-                `${event.code}`.toLowerCase() === 'escape')
-            {
+                `${event.key}`.toLowerCase() === "escape" ||
+                `${event.code}`.toLowerCase() === "escape"
+            ) {
                 this.resetAction(editor);
                 editor.focus();
                 this.redraw(editor);
                 return;
             }
 
-            if (event.which === 38 ||
+            if (
+                event.which === 38 ||
                 event.keyCode === 38 ||
-                `${event.code}`.toLowerCase() === 'arrowup' ||
-                `${event.key}`.toLowerCase() === 'arrowup') {
+                `${event.code}`.toLowerCase() === "arrowup" ||
+                `${event.key}`.toLowerCase() === "arrowup"
+            ) {
                 if (this.settings.keyboard_arrows_switch) {
                     const curr_layout = this.layout_cur;
                     const curr_mode = this.mode;
@@ -504,10 +555,12 @@ export default class BlazeJumpPlugin extends Plugin {
                 }
             }
 
-            if (event.which === 40 ||
+            if (
+                event.which === 40 ||
                 event.keyCode === 40 ||
-                `${event.code}`.toLowerCase() === 'arrowdown' ||
-                `${event.key}`.toLowerCase() === 'arrowdown') {
+                `${event.code}`.toLowerCase() === "arrowdown" ||
+                `${event.key}`.toLowerCase() === "arrowdown"
+            ) {
                 if (this.settings.keyboard_arrows_switch) {
                     const curr_layout = this.layout_cur;
                     const curr_mode = this.mode;
@@ -521,11 +574,12 @@ export default class BlazeJumpPlugin extends Plugin {
                 }
             }
 
-            if (event.which === 37 ||
+            if (
+                event.which === 37 ||
                 event.keyCode === 37 ||
-                `${event.code}`.toLowerCase() === 'arrowleft' ||
-                `${event.key}`.toLowerCase() === 'arrowleft')
-            {
+                `${event.code}`.toLowerCase() === "arrowleft" ||
+                `${event.key}`.toLowerCase() === "arrowleft"
+            ) {
                 const curr_layout = this.layout_cur;
                 const changed = this.toggleLineMode(true, editor);
                 if (this.settings.keyboard_arrows_switch && !changed) {
@@ -538,16 +592,17 @@ export default class BlazeJumpPlugin extends Plugin {
                 return;
             }
 
-            if (event.which === 39 ||
+            if (
+                event.which === 39 ||
                 event.keyCode === 39 ||
-                `${event.code}`.toLowerCase() === 'arrowright' ||
-                `${event.key}`.toLowerCase() === 'arrowright')
-            {
+                `${event.code}`.toLowerCase() === "arrowright" ||
+                `${event.key}`.toLowerCase() === "arrowright"
+            ) {
                 const curr_layout = this.layout_cur;
                 const changed = this.toggleLineMode(false, editor);
                 if (this.settings.keyboard_arrows_switch && !changed) {
                     this.layout_cur = curr_layout;
-                    this.toggleLayout()
+                    this.toggleLayout();
                 }
 
                 this.lineAction(editor);
@@ -568,29 +623,25 @@ export default class BlazeJumpPlugin extends Plugin {
                     inter_plugin_state.state.positions = [...new_positions];
 
                     this.callback_provided_input = callback_on_provided;
-                    window.addEventListener('keydown', callback_on_provided, { once: true });
-                }
-
-                else if (new_positions.length === 1) {
+                    window.addEventListener("keydown", callback_on_provided, {
+                        once: true,
+                    });
+                } else if (new_positions.length === 1) {
                     this.jumpTo(editor, new_positions[0]);
                     editor.focus();
-                }
-
-                else if (this.settings.search_not_found_text &&
-                    this.settings.search_not_found_text.trim() !== '') {
+                } else if (
+                    this.settings.search_not_found_text &&
+                    this.settings.search_not_found_text.trim() !== ""
+                ) {
                     editor.focus();
                     new Notice(this.settings.search_not_found_text);
                 }
-            }
-
-            catch (e) {
+            } catch (e) {
                 console.error(e);
                 this.resetAction(editor);
                 editor.focus();
                 throw e;
-            }
-
-            finally {
+            } finally {
                 // forcing re-render
                 this.redraw(editor);
             }
@@ -604,14 +655,22 @@ export default class BlazeJumpPlugin extends Plugin {
         this.callback_provided_input = callback_on_provided;
         this.callback_mouse_reset = callback_on_mouse_reset;
 
-        window.addEventListener("keydown", callback_on_provided, { once: true });
+        window.addEventListener("keydown", callback_on_provided, {
+            once: true,
+        });
 
-        window.addEventListener("click", callback_on_mouse_reset, { once: true });
-        window.addEventListener("contextmenu", callback_on_mouse_reset, { once: true });
-        window.addEventListener("auxclick", callback_on_mouse_reset, { once: true });
+        window.addEventListener("click", callback_on_mouse_reset, {
+            once: true,
+        });
+        window.addEventListener("contextmenu", callback_on_mouse_reset, {
+            once: true,
+        });
+        window.addEventListener("auxclick", callback_on_mouse_reset, {
+            once: true,
+        });
     }
 
-	private searchAction(editor: Editor) {
+    private searchAction(editor: Editor) {
         this.statusSet(`${this.lang.mode}: `);
         this.pulseInit(true);
 
@@ -627,63 +686,72 @@ export default class BlazeJumpPlugin extends Plugin {
                 editor.focus();
 
                 window.removeEventListener("click", callback_on_mouse_reset);
-                window.removeEventListener("contextmenu", callback_on_mouse_reset);
+                window.removeEventListener(
+                    "contextmenu",
+                    callback_on_mouse_reset,
+                );
                 window.removeEventListener("auxclick", callback_on_mouse_reset);
             } finally {
                 this.redraw(editor);
             }
         };
 
-		const callback_on_provided = (event: any) => {
-			try {
+        const callback_on_provided = (event: any) => {
+            try {
                 window.removeEventListener("keydown", callback_on_provided);
                 event.preventDefault();
                 event.stopPropagation();
 
-                if (event.which === 16 ||
+                if (
+                    event.which === 16 ||
                     event.keyCode === 16 ||
-                    `${event.key}`.toLowerCase() === 'shift'
+                    `${event.key}`.toLowerCase() === "shift"
                 ) {
                     this.callback_provided_input = callback_on_provided;
-                    window.addEventListener('keydown', callback_on_provided, { once: true });
+                    window.addEventListener("keydown", callback_on_provided, {
+                        once: true,
+                    });
                     return;
                 }
 
-                if (event.keyCode === 27 ||
+                if (
+                    event.keyCode === 27 ||
                     event.which === 27 ||
-                    `${event.key}`.toLowerCase() === 'escape' ||
-                    `${event.code}`.toLowerCase() === 'escape')
-                {
+                    `${event.key}`.toLowerCase() === "escape" ||
+                    `${event.code}`.toLowerCase() === "escape"
+                ) {
                     this.resetAction(editor);
                     return;
                 }
 
-                if (event.which === 37 ||
+                if (
+                    event.which === 37 ||
                     event.keyCode === 37 ||
-                    `${event.code}`.toLowerCase() === 'arrowleft' ||
-                    `${event.key}`.toLowerCase() === 'arrowleft')
-                {
+                    `${event.code}`.toLowerCase() === "arrowleft" ||
+                    `${event.key}`.toLowerCase() === "arrowleft"
+                ) {
                     this.toggleLineMode(true, editor);
                     this.lineAction(editor);
                     return;
                 }
 
-                if (event.which === 39 ||
+                if (
+                    event.which === 39 ||
                     event.keyCode === 39 ||
-                    `${event.code}`.toLowerCase() === 'arrowright' ||
-                    `${event.key}`.toLowerCase() === 'arrowright')
-                {
+                    `${event.code}`.toLowerCase() === "arrowright" ||
+                    `${event.key}`.toLowerCase() === "arrowright"
+                ) {
                     this.toggleLineMode(false, editor);
                     this.lineAction(editor);
                     return;
                 }
 
-
-                if (event.which === 38 ||
+                if (
+                    event.which === 38 ||
                     event.keyCode === 38 ||
-                    `${event.code}`.toLowerCase() === 'arrowup' ||
-                    `${event.key}`.toLowerCase() === 'arrowup')
-                {
+                    `${event.code}`.toLowerCase() === "arrowup" ||
+                    `${event.key}`.toLowerCase() === "arrowup"
+                ) {
                     if (this.settings.keyboard_arrows_switch) {
                         const curr_layout = this.layout_cur;
                         const curr_key = this.current_char;
@@ -695,20 +763,33 @@ export default class BlazeJumpPlugin extends Plugin {
                         this.toggleLayout(+1);
 
                         this.callback_mouse_reset = callback_on_mouse_reset;
-                        window.addEventListener("click", callback_on_mouse_reset, { once: true });
-                        window.addEventListener("contextmenu", callback_on_mouse_reset, { once: true });
-                        window.addEventListener("auxclick", callback_on_mouse_reset, { once: true });
+                        window.addEventListener(
+                            "click",
+                            callback_on_mouse_reset,
+                            { once: true },
+                        );
+                        window.addEventListener(
+                            "contextmenu",
+                            callback_on_mouse_reset,
+                            { once: true },
+                        );
+                        window.addEventListener(
+                            "auxclick",
+                            callback_on_mouse_reset,
+                            { once: true },
+                        );
 
-                        callback_on_start({key: curr_key, code: curr_key});
+                        callback_on_start({ key: curr_key, code: curr_key });
                         return;
                     }
                 }
 
-                if (event.which === 40 ||
+                if (
+                    event.which === 40 ||
                     event.keyCode === 40 ||
-                    `${event.code}`.toLowerCase() === 'arrowdown' ||
-                    `${event.key}`.toLowerCase() === 'arrowdown')
-                {
+                    `${event.code}`.toLowerCase() === "arrowdown" ||
+                    `${event.key}`.toLowerCase() === "arrowdown"
+                ) {
                     if (this.settings.keyboard_arrows_switch) {
                         const curr_layout = this.layout_cur;
                         const curr_key = this.current_char;
@@ -720,11 +801,23 @@ export default class BlazeJumpPlugin extends Plugin {
                         this.toggleLayout(-1);
 
                         this.callback_mouse_reset = callback_on_mouse_reset;
-                        window.addEventListener("click", callback_on_mouse_reset, { once: true });
-                        window.addEventListener("contextmenu", callback_on_mouse_reset, { once: true });
-                        window.addEventListener("auxclick", callback_on_mouse_reset, { once: true });
+                        window.addEventListener(
+                            "click",
+                            callback_on_mouse_reset,
+                            { once: true },
+                        );
+                        window.addEventListener(
+                            "contextmenu",
+                            callback_on_mouse_reset,
+                            { once: true },
+                        );
+                        window.addEventListener(
+                            "auxclick",
+                            callback_on_mouse_reset,
+                            { once: true },
+                        );
 
-                        callback_on_start({key: curr_key, code: curr_key});
+                        callback_on_start({ key: curr_key, code: curr_key });
                         return;
                     }
                 }
@@ -743,66 +836,65 @@ export default class BlazeJumpPlugin extends Plugin {
                     inter_plugin_state.state.positions = [...new_positions];
 
                     this.callback_provided_input = callback_on_provided;
-                    window.addEventListener('keydown', callback_on_provided, { once: true });
-                }
-
-                else if (new_positions.length === 1) {
+                    window.addEventListener("keydown", callback_on_provided, {
+                        once: true,
+                    });
+                } else if (new_positions.length === 1) {
                     editor.focus();
                     this.jumpTo(editor, new_positions[0]);
-                }
-
-                else if (this.settings.search_not_found_text &&
-                    this.settings.search_not_found_text.trim() !== '') {
+                } else if (
+                    this.settings.search_not_found_text &&
+                    this.settings.search_not_found_text.trim() !== ""
+                ) {
                     editor.focus();
                     new Notice(this.settings.search_not_found_text);
                 }
-
-
-            }
-
-            catch (e) {
-				console.error(e);
-				this.resetAction(editor);
+            } catch (e) {
+                console.error(e);
+                this.resetAction(editor);
                 editor.focus();
-				throw e;
-			}
-
-            finally {
+                throw e;
+            } finally {
                 // forcing re-render
                 this.redraw(editor);
             }
-		}
+        };
 
-		const callback_on_start = (event: any) => {
+        const callback_on_start = (event: any) => {
             window.removeEventListener("keydown", callback_on_start);
             event?.preventDefault?.();
             event?.stopPropagation?.();
 
-            if (event.which === 16 ||
+            if (
+                event.which === 16 ||
                 event.keyCode === 16 ||
-                `${event.key}`.toLowerCase() === 'shift'
+                `${event.key}`.toLowerCase() === "shift"
             ) {
                 this.callback_start_search = callback_on_start;
-                window.addEventListener('keydown', callback_on_start, { once: true });
+                window.addEventListener("keydown", callback_on_start, {
+                    once: true,
+                });
                 return;
             }
 
-            if (event.keyCode === 27 ||
+            if (
+                event.keyCode === 27 ||
                 event.which === 27 ||
-                `${event.key}`.toLowerCase() === 'escape' ||
-                `${event.code}`.toLowerCase() === 'escape')
-            {
+                `${event.key}`.toLowerCase() === "escape" ||
+                `${event.code}`.toLowerCase() === "escape"
+            ) {
                 this.resetAction(editor);
                 editor.focus();
                 this.redraw(editor);
                 return;
             }
 
-            if (event.which === 38 ||
+            if (
+                event.which === 38 ||
                 event.keyCode === 38 ||
-                `${event.code}`.toLowerCase() === 'arrowup' ||
-                `${event.key}`.toLowerCase() === 'arrowup')
-            {
+                `${event.code}`.toLowerCase() === "arrowup" ||
+                `${event.key}`.toLowerCase() === "arrowup"
+            ) {
                 if (this.settings.keyboard_arrows_switch) {
                     const curr_layout = this.layout_cur;
                     const curr_mode = this.mode;
@@ -817,11 +909,12 @@ export default class BlazeJumpPlugin extends Plugin {
                 }
             }
 
-            if (event.which === 40 ||
+            if (
+                event.which === 40 ||
                 event.keyCode === 40 ||
-                `${event.code}`.toLowerCase() === 'arrowdown' ||
-                `${event.key}`.toLowerCase() === 'arrowdown')
-            {
+                `${event.code}`.toLowerCase() === "arrowdown" ||
+                `${event.key}`.toLowerCase() === "arrowdown"
+            ) {
                 if (this.settings.keyboard_arrows_switch) {
                     const curr_layout = this.layout_cur;
                     const curr_mode = this.mode;
@@ -836,22 +929,24 @@ export default class BlazeJumpPlugin extends Plugin {
                 }
             }
 
-            if (event.which === 37 ||
+            if (
+                event.which === 37 ||
                 event.keyCode === 37 ||
-                `${event.code}`.toLowerCase() === 'arrowleft' ||
-                `${event.key}`.toLowerCase() === 'arrowleft')
-            {
+                `${event.code}`.toLowerCase() === "arrowleft" ||
+                `${event.key}`.toLowerCase() === "arrowleft"
+            ) {
                 this.toggleLineMode(true, editor);
                 this.lineAction(editor);
                 this.redraw(editor);
                 return;
             }
 
-            if (event.which === 39 ||
+            if (
+                event.which === 39 ||
                 event.keyCode === 39 ||
-                `${event.code}`.toLowerCase() === 'arrowright' ||
-                `${event.key}`.toLowerCase() === 'arrowright')
-            {
+                `${event.code}`.toLowerCase() === "arrowright" ||
+                `${event.key}`.toLowerCase() === "arrowright"
+            ) {
                 this.toggleLineMode(false, editor);
                 this.lineAction(editor);
                 this.redraw(editor);
@@ -860,70 +955,138 @@ export default class BlazeJumpPlugin extends Plugin {
 
             try {
                 this.toggleSpellcheck(false);
-                this.toggleDim(true);
 
-                const char = `${event.key}`.toLowerCase();
+                const char1 = `${event.key}`.toLowerCase();
                 this.current_char = event.key;
 
-				if (char.length <= 2 && char.trim().length > 0) {
-					const positions = this.performSearch(editor, char);
-					if (!positions || positions.length <= 0) {
-						this.resetAction(editor);
-                        editor.focus();
-                        if (this.settings.search_not_found_text &&
-                            this.settings.search_not_found_text.trim() !== '') {
-                            new Notice(this.settings.search_not_found_text);
+                if (char1.length === 1 && char1.trim().length > 0) {
+                    this.statusSet([
+                        { text: `${this.lang.mode}: ` },
+                        { text: char1, color: "orange" },
+                        { text: "_" },
+                    ]);
+
+                    const positions = this.performSearch(editor, char1, false);
+                    inter_plugin_state.state.positions = positions;
+                    this.toggleDim(true);
+                    this.redraw(editor);
+
+                    const callback_on_second = (event2: any) => {
+                        window.removeEventListener(
+                            "keydown",
+                            callback_on_second,
+                        );
+                        event2.preventDefault();
+                        event2.stopPropagation();
+
+                        if (event2.keyCode === 27 || event2.key === "Escape") {
+                            this.resetAction(editor);
+                            editor.focus();
+                            this.redraw(editor);
+                            return;
                         }
-						return;
-					}
 
-                    if (positions.length === 1 && (this.settings.auto_jump_on_single === true)) {
-                        this.resetAction(editor);
-                        editor.focus();
-                        this.jumpTo(editor, positions[0]);
-                        return;
-                    }
+                        const char2 = `${event2.key}`.toLowerCase();
+                        if (char2.length === 1 && char2.trim().length > 0) {
+                            const search = char1 + char2;
+                            const positions = this.performSearch(
+                                editor,
+                                search,
+                            );
 
-					inter_plugin_state.state.positions = [...positions];
-                    inter_plugin_state.state.pointer = undefined;
+                            if (!positions || positions.length <= 0) {
+                                this.resetAction(editor);
+                                editor.focus();
+                                if (
+                                    this.settings.search_not_found_text &&
+                                    this.settings.search_not_found_text.trim() !==
+                                        ""
+                                ) {
+                                    new Notice(
+                                        this.settings.search_not_found_text,
+                                    );
+                                }
+                                this.redraw(editor);
+                                return;
+                            }
 
-					this.statusSet(`${this.lang.mode}: ${char}`);
+                            this.toggleDim(true);
 
-                    this.callback_provided_input = callback_on_provided;
-					window.addEventListener('keydown', callback_on_provided, { once: true });
-				} else {
-					this.resetAction(editor);
+                            if (
+                                positions.length === 1 &&
+                                this.settings.auto_jump_on_single === true
+                            ) {
+                                this.resetAction(editor);
+                                editor.focus();
+                                this.jumpTo(editor, positions[0]);
+                                this.redraw(editor);
+                                return;
+                            }
+
+                            inter_plugin_state.state.positions = [...positions];
+                            inter_plugin_state.state.pointer = undefined;
+
+                            this.statusSet([
+                                { text: `${this.lang.mode}: ` },
+                                { text: char1, color: "orange" },
+                                { text: char2, color: "orange" },
+                            ]);
+
+                            this.callback_provided_input = callback_on_provided;
+                            window.addEventListener(
+                                "keydown",
+                                callback_on_provided,
+                                {
+                                    once: true,
+                                },
+                            );
+                            this.redraw(editor);
+                        } else {
+                            this.resetAction(editor);
+                            editor.focus();
+                            this.redraw(editor);
+                        }
+                    };
+
+                    this.callback_provided_input = callback_on_second;
+                    window.addEventListener("keydown", callback_on_second, {
+                        once: true,
+                    });
+                } else {
+                    this.resetAction(editor);
                     editor.focus();
-				}
-			}
-
-            catch (e) {
-				console.error(e);
-				this.resetAction(editor);
+                }
+            } catch (e) {
+                console.error(e);
+                this.resetAction(editor);
                 editor.focus();
-				throw e;
-			}
-
-            finally {
+                throw e;
+            } finally {
                 // forcing re-render
                 this.redraw(editor);
             }
-		};
+        };
 
-		this.callback_provided_input = callback_on_provided;
-		this.callback_start_search = callback_on_start;
+        this.callback_provided_input = callback_on_provided;
+        this.callback_start_search = callback_on_start;
         this.callback_mouse_reset = callback_on_mouse_reset;
 
-		window.addEventListener("keydown", callback_on_start, { once: true });
+        window.addEventListener("keydown", callback_on_start, { once: true });
 
-		window.addEventListener("click", callback_on_mouse_reset, { once: true });
-		window.addEventListener("contextmenu", callback_on_mouse_reset, { once: true });
-		window.addEventListener("auxclick", callback_on_mouse_reset, { once: true });
-	}
+        window.addEventListener("click", callback_on_mouse_reset, {
+            once: true,
+        });
+        window.addEventListener("contextmenu", callback_on_mouse_reset, {
+            once: true,
+        });
+        window.addEventListener("auxclick", callback_on_mouse_reset, {
+            once: true,
+        });
+    }
 
     private performLineSearch(editor: Editor) {
-        const term_exceptions = [...this.settings.exceptions ?? ''];
-        const view = (<EditorView> (<any> editor)['cm']);
+        const term_exceptions = [...(this.settings.exceptions ?? "")];
+        const view = <EditorView>(<any>editor)["cm"];
 
         const from = editor.offsetToPos(this.range_from);
         const to = editor.offsetToPos(this.range_to);
@@ -943,19 +1106,17 @@ export default class BlazeJumpPlugin extends Plugin {
         let anchor: EditorPosition | null = null;
 
         for (let i = line_f; i <= line_t; i++) {
-            const start = <EditorPosition> { line: i, ch: 0 };
+            const start = <EditorPosition>{ line: i, ch: 0 };
             const line = editor.getLine(i);
             const length = line.length;
 
             if (length > 0) {
                 first = view.coordsAtPos(editor.posToOffset(start));
                 anchor = start;
-            }
-
-            else if (length <= 0) {
+            } else if (length <= 0) {
                 if (!first || !anchor) {
                     for (let k = i + 1; k < line_t; k++) {
-                        const st = <EditorPosition> { line: k, ch: 0 };
+                        const st = <EditorPosition>{ line: k, ch: 0 };
                         if (editor.getLine(k).length > 0) {
                             first = view.coordsAtPos(editor.posToOffset(st));
                             anchor = st;
@@ -963,72 +1124,78 @@ export default class BlazeJumpPlugin extends Plugin {
                         }
                     }
                 }
-                if (!first || !anchor)
-                    continue;
+                if (!first || !anchor) continue;
 
-                const end = <EditorPosition> { line: i, ch: 1 };
+                const end = <EditorPosition>{ line: i, ch: 1 };
                 const pos = editor.posToOffset(anchor);
                 const zero = view.coordsAtPos(editor.posToOffset(start));
 
-                if (!zero)
-                    continue;
+                if (!zero) continue;
 
-                const off = this.calc_offset(editor.getLine(anchor.line), term_exceptions);
-                this.search_tree.assign(search_char, <SearchPosition> {
-                    index_e: pos + 1 + off,
-                    index_s: pos + off,
-                    origin: first,
-                    coord: zero,
-                    start: start,
-                    end: end
-                }, layout_idx);
+                const off = this.calc_offset(
+                    editor.getLine(anchor.line),
+                    term_exceptions,
+                );
+                this.search_tree.assign(
+                    search_char,
+                    <SearchPosition>{
+                        index_e: pos + 1 + off,
+                        index_s: pos + off,
+                        match_s: pos + off,
+                        match_e: pos + off + 1,
+                        origin: first,
+                        coord: zero,
+                        start: start,
+                        end: end,
+                    },
+                    layout_idx,
+                );
 
                 continue;
             }
 
-            if (this.mode === 'line') {
+            if (this.mode === "line") {
                 let prev_pos = null;
                 for (let j = 0; j < line.length; j++) {
-                    const point = <EditorPosition> { line: i, ch: j };
+                    const point = <EditorPosition>{ line: i, ch: j };
                     const p_off = editor.posToOffset(point);
                     const base = view.coordsAtPos(p_off);
 
-                    if (!base?.top)
-                        continue;
+                    if (!base?.top) continue;
 
-                    if (!(prev_pos === null || prev_pos < base.top))
-                        continue;
+                    if (!(prev_pos === null || prev_pos < base.top)) continue;
 
-                    const end = <EditorPosition> { line: i, ch: 1 + j };
+                    const end = <EditorPosition>{ line: i, ch: 1 + j };
 
-                    this.search_tree.assign(search_char, <SearchPosition> {
-                        index_e: p_off + 1,
-                        index_s: p_off,
-                        origin: first,
-                        coord: base,
-                        start: point,
-                        end: end
-                    }, layout_idx);
+                    this.search_tree.assign(
+                        search_char,
+                        <SearchPosition>{
+                            index_e: p_off + 1,
+                            index_s: p_off,
+                            match_s: p_off,
+                            match_e: p_off + 1,
+                            origin: first,
+                            coord: base,
+                            start: point,
+                            end: end,
+                        },
+                        layout_idx,
+                    );
 
                     prev_pos = base.top;
                 }
-            }
-
-            else if (this.mode === 'terminator') {
+            } else if (this.mode === "terminator") {
                 let prev_pos = null;
                 for (let j = 0; j < line.length; j++) {
-                    const point = <EditorPosition> { line: i, ch: j };
+                    const point = <EditorPosition>{ line: i, ch: j };
                     const p_off = editor.posToOffset(point);
                     const base = view.coordsAtPos(p_off);
 
-                    if (!base?.top)
-                        continue;
+                    if (!base?.top) continue;
 
-                    if (j <= 1)
-                        continue;
+                    if (j <= 1) continue;
 
-                    if (!(prev_pos === null || prev_pos < base.top))
-                        continue;
+                    if (!(prev_pos === null || prev_pos < base.top)) continue;
 
                     // WebStorm BUG
                     // noinspection PointlessBooleanExpressionJS
@@ -1038,34 +1205,38 @@ export default class BlazeJumpPlugin extends Plugin {
                     }
 
                     const prev_i = j - 1;
-                    const prev_p = <EditorPosition> { line: i, ch: prev_i };
-                    const prev_e = <EditorPosition> { line: i, ch: prev_i + 1 };
+                    const prev_p = <EditorPosition>{ line: i, ch: prev_i };
+                    const prev_e = <EditorPosition>{ line: i, ch: prev_i + 1 };
                     const prev_o = editor.posToOffset(prev_p);
                     const prev_b = view.coordsAtPos(prev_o);
 
-                    if (!prev_b)
-                        continue;
+                    if (!prev_b) continue;
 
-                    this.search_tree.assign(search_char, <SearchPosition> {
-                        index_e: prev_o + 1,
-                        index_s: prev_o,
-                        origin: first,
-                        coord: prev_b,
-                        start: prev_p,
-                        end: prev_e
-                    }, layout_idx);
+                    this.search_tree.assign(
+                        search_char,
+                        <SearchPosition>{
+                            index_e: prev_o + 1,
+                            index_s: prev_o,
+                            match_s: prev_o,
+                            match_e: prev_o + 1,
+                            origin: first,
+                            coord: prev_b,
+                            start: prev_p,
+                            end: prev_e,
+                        },
+                        layout_idx,
+                    );
 
                     prev_pos = base.top;
                 }
 
                 const prev_i = line.length;
-                const prev_p = <EditorPosition> { line: i, ch: prev_i - 1 };
-                const prev_e = <EditorPosition> { line: i, ch: prev_i };
+                const prev_p = <EditorPosition>{ line: i, ch: prev_i - 1 };
+                const prev_e = <EditorPosition>{ line: i, ch: prev_i };
                 const prev_o = editor.posToOffset(prev_p);
                 const prev_b = view.coordsAtPos(prev_o);
 
-                if (!prev_b)
-                    continue;
+                if (!prev_b) continue;
 
                 let off = 0;
                 while (true) {
@@ -1077,109 +1248,178 @@ export default class BlazeJumpPlugin extends Plugin {
                     break;
                 }
 
-                this.search_tree.assign(search_char, <SearchPosition> {
-                    index_e: prev_o + 1 - off,
-                    index_s: prev_o - off,
-                    origin: first,
-                    coord: prev_b,
-                    start: prev_e,
-                    end: prev_e
-                }, layout_idx);
+                this.search_tree.assign(
+                    search_char,
+                    <SearchPosition>{
+                        index_e: prev_o + 1 - off,
+                        index_s: prev_o - off,
+                        match_s: prev_o - off,
+                        match_e: prev_o - off + 1,
+                        origin: first,
+                        coord: prev_b,
+                        start: prev_e,
+                        end: prev_e,
+                    },
+                    layout_idx,
+                );
             }
         }
 
         return this.freeze_positions();
     }
 
-	private performSearch(editor: Editor, search: string) {
-		inter_plugin_state.state.target = search;
+    private performSearch(
+        editor: Editor,
+        search: string,
+        assign_labels: boolean = true,
+    ) {
+        if (assign_labels) {
+            inter_plugin_state.state.target = search;
+        }
 
-        const term_exceptions = [...this.settings.exceptions ?? ''];
+        const results: SearchPosition[] = [];
+
+        const term_exceptions = [...(this.settings.exceptions ?? "")];
         const word_end_offset = this.settings.jump_after_word_on_end ? 1 : 0;
 
-        const view = (<EditorView> (<any> editor)['cm']);
+        const view = <EditorView>(<any>editor)["cm"];
         const search_lower = this.normalize_text(search.toLowerCase());
-		const visible_text = editor.getValue().toLowerCase();
-		const search_area = visible_text.substring(this.range_from, this.range_to);
+        const visible_text = editor.getValue().toLowerCase();
+        const search_area = visible_text.substring(
+            this.range_from,
+            this.range_to,
+        );
 
-        const layout_idx = (this.settings.keyboard_recognize && !this.override_recognize)
-            ? this.search_tree.recognize_layout(search, this.layout_cur)
-            : this.layout_cur;
+        const recognize_input = search.length > 0 ? search[0] : search;
+        const layout_idx =
+            this.settings.keyboard_recognize && !this.override_recognize
+                ? this.search_tree.recognize_layout(
+                      recognize_input,
+                      this.layout_cur,
+                  )
+                : this.layout_cur;
 
         if (this.settings.keyboard_recognize && !this.override_recognize) {
             this.layout_cur = layout_idx;
             this.layoutSet(layout_idx);
         }
 
-		let index = search_area.indexOf(search_lower);
-		const t0 = new Date().getTime();
-		while (index > -1) {
-			const end = editor.offsetToPos(index + this.range_from + search.length);
-			const start = editor.offsetToPos(index + this.range_from);
+        let index = search_area.indexOf(search_lower);
+        const t0 = new Date().getTime();
+        while (index > -1) {
+            const hit_offset = index + this.range_from;
+            const end = editor.offsetToPos(hit_offset + search.length);
+            const start = editor.offsetToPos(hit_offset);
 
-            const zero = view.coordsAtPos(index + this.range_from - start.ch);
-            const coord = view.coordsAtPos(index + this.range_from);
+            const line_start_offset = hit_offset - start.ch;
+            const line_end_offset =
+                line_start_offset + editor.getLine(start.line).length;
 
-            if (!zero || !coord) {
+            const anchor = this.resolve_visible_anchor(
+                view,
+                hit_offset,
+                line_start_offset,
+                line_end_offset,
+            );
+
+            if (!anchor) {
                 index = search_area.indexOf(search_lower, index + 1);
                 continue;
             }
 
-            const off = this.calc_offset(editor.getLine(start.line), term_exceptions);
-			let search_position = <SearchPosition> {
-				index_e: index + this.range_from - start.ch + search.length + off,
-				index_s: index + this.range_from - start.ch + off,
-                origin: zero,
-				coord: coord,
-				start: start,
-				end: end
-			};
+            const is_hidden_anchor = anchor.pos !== hit_offset;
+            const render_match_s = is_hidden_anchor ? anchor.pos : hit_offset;
+            const render_match_e = is_hidden_anchor
+                ? anchor.pos + 1
+                : hit_offset + search.length;
 
-			if (this.mode === 'any') {
-				this.search_tree.assign(search_lower, search_position, layout_idx);
-			}
+            let search_position = <SearchPosition>{
+                index_e: anchor.pos + 1,
+                index_s: anchor.pos,
+                match_s: render_match_s,
+                match_e: render_match_e,
+                origin: anchor.coord,
+                coord: anchor.coord,
+                start: start,
+                end: end,
+            };
+            results.push(search_position);
 
-			else if (this.mode === 'start') {
-				const pre = editor.offsetToPos((index > 0 ? index - 1 : index) + this.range_from);
-				const nv = editor.getRange(pre, end).trim();
-				if (nv.length === 1) {
-                    this.search_tree.assign(search_lower, search_position, layout_idx);
-                } else if (nv.length === 2 && term_exceptions.some(x => x === nv.at(0))) {
-                    this.search_tree.assign(search_lower, search_position, layout_idx);
+            if (assign_labels) {
+                let matches_mode = false;
+                if (this.mode === "any") {
+                    matches_mode = true;
+                } else if (this.mode === "start") {
+                    const pre = editor.offsetToPos(
+                        (index > 0 ? index - 1 : index) + this.range_from,
+                    );
+                    const nv = editor.getRange(pre, end).trim();
+                    if (nv.length === search.length) {
+                        matches_mode = true;
+                    } else if (
+                        nv.length === search.length + 1 &&
+                        term_exceptions.some((x) => x === nv.at(0))
+                    ) {
+                        matches_mode = true;
+                    }
+                } else if (this.mode === "end") {
+                    const two = editor.offsetToPos(
+                        index + search.length + 1 + this.range_from,
+                    );
+                    const nv = editor.getRange(start, two).trim();
+                    if (nv.length === 1) {
+                        search_position.start.ch += word_end_offset;
+                        matches_mode = true;
+                    } else if (
+                        nv.length === 2 &&
+                        term_exceptions.some((x) => x === nv.at(1))
+                    ) {
+                        search_position.start.ch += word_end_offset;
+                        matches_mode = true;
+                    }
                 }
-			}
 
-			else if (this.mode === 'end') {
-				const two = editor.offsetToPos(index + search.length + 1 + this.range_from);
-				const nv = editor.getRange(start, two).trim();
-				if (nv.length === 1) {
-                    search_position.start.ch += word_end_offset;
-                    this.search_tree.assign(search_lower, search_position, layout_idx);
-                } else if (nv.length === 2 && term_exceptions.some(x => x === nv.at(1))) {
-                    search_position.start.ch += word_end_offset;
-                    this.search_tree.assign(search_lower, search_position, layout_idx);
+                if (matches_mode) {
+                    this.search_tree.assign(
+                        search_lower,
+                        search_position,
+                        layout_idx,
+                    );
                 }
-			}
+            } else {
+                // If not assigning labels, we just need the positions
+                search_position.name = "";
+            }
 
-			index = search_area.indexOf(search_lower, index + 1);
-		}
+            index = search_area.indexOf(search_lower, index + 1);
+        }
 
-        let positions = this.freeze_positions();
+        if (!assign_labels) {
+            this.search_tree.reset();
+            return results;
+        }
 
-		const t1 = new Date().getTime();
+        let positions = this.freeze_positions(assign_labels);
 
-		console.debug(`indexing: ${t1 - t0}ms`);
-		console.debug(`found: ${positions.length}`);
+        const t1 = new Date().getTime();
 
-		return positions;
-	}
+        console.debug(`indexing: ${t1 - t0}ms`);
+        console.debug(`found: ${positions.length}`);
+
+        return positions;
+    }
 
     private calc_offset(line: string, term_exceptions: string[]): number {
         // this is workaround for very *peculiar* behaviour of markdown editor live-preview for bold/italics/etc...
-        let l_offset = 1;
-        while (l_offset < line.length - 1) {
+        let l_offset = 0;
+        while (l_offset < line.length) {
             const cc = line.at(l_offset);
-            if (cc && term_exceptions.some(x => x === cc)) {
+            if (
+                cc &&
+                (term_exceptions.some((x) => x === cc) ||
+                    cc === " " ||
+                    cc === "\t")
+            ) {
                 l_offset += 1;
                 continue;
             }
@@ -1188,15 +1428,78 @@ export default class BlazeJumpPlugin extends Plugin {
         return l_offset;
     }
 
-    private freeze_positions(): SearchPosition[] {
-        return this.search_tree.freeze_nodes()
-            .map(x => ({...x.value as SearchPosition, name: x.full_id.substring(1)}))
+    private resolve_visible_anchor(
+        view: EditorView,
+        preferred_pos: number,
+        min_pos: number,
+        max_pos: number,
+    ): { pos: number; coord: Rect } | null {
+        const left = Math.max(0, Math.min(min_pos, max_pos));
+        const right = Math.max(left, Math.max(min_pos, max_pos));
+
+        const probe = (pos: number): Rect | null =>
+            view.coordsAtPos(pos) ??
+            view.coordsAtPos(pos, -1) ??
+            view.coordsAtPos(pos, 1);
+
+        const exact = probe(preferred_pos);
+        if (exact) return { pos: preferred_pos, coord: exact };
+
+        const scan = (
+            p0: number,
+            l: number,
+            r: number,
+            max_span: number,
+        ): { pos: number; coord: Rect } | null => {
+            for (let d = 1; d <= max_span; d++) {
+                const f = p0 + d;
+                if (f <= r) {
+                    const c = probe(f);
+                    if (c) return { pos: f, coord: c };
+                }
+
+                const b = p0 - d;
+                if (b >= l) {
+                    const c = probe(b);
+                    if (c) return { pos: b, coord: c };
+                }
+
+                if (f > r && b < l) break;
+            }
+
+            return null;
+        };
+
+        const local = scan(preferred_pos, left, right, right - left);
+        if (local) return local;
+
+        const global_left = Math.max(0, this.range_from ?? left);
+        const global_right = Math.max(global_left, this.range_to ?? right);
+        const global = scan(
+            preferred_pos,
+            global_left,
+            global_right,
+            global_right - global_left,
+        );
+        if (global) return global;
+
+        return null;
+    }
+
+    private freeze_positions(with_names: boolean = true): SearchPosition[] {
+        const skip = 1;
+        return this.search_tree
+            .freeze_nodes()
+            .map((x) => ({
+                ...(x.value as SearchPosition),
+                name: with_names ? x.full_id.substring(skip) : "",
+            }))
             .sort((a, b) => a.index_s - b.index_s);
     }
 
     private normalize_text(str: string): string {
-        return (this.settings.convert_utf8_to_ascii === true)
-            ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        return this.settings.convert_utf8_to_ascii === true
+            ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
             : str;
     }
 }

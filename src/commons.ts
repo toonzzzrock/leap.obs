@@ -1,7 +1,7 @@
-import {EditorPosition} from "obsidian";
-import {EditorView} from "@codemirror/view";
+import { EditorPosition } from "obsidian";
+import { EditorView } from "@codemirror/view";
 
-export type MODE_TYPE = 'start' | 'end' | 'any' | 'line' | 'terminator';
+export type MODE_TYPE = "start" | "end" | "any" | "line" | "terminator";
 
 export interface Coord {
     bottom: number;
@@ -17,6 +17,7 @@ export interface SearchStyle {
     border: string;
     offset: number;
     fix?: number;
+    bright_dim?: boolean;
 }
 
 export interface PulseStyle {
@@ -32,10 +33,12 @@ export interface SearchPosition {
     coord: Coord;
     origin: Coord;
     name: string;
+    match_s: number;
+    match_e: number;
 }
 
 export interface InterState {
-    plugin_draw_observers?: ({ id: string, fn: () => void })[];
+    plugin_draw_observers?: { id: string; fn: () => void }[];
     plugin_draw_callback?: () => void;
     editor_callback?: (view: EditorView) => void;
     style_provider?: () => SearchStyle;
@@ -43,6 +46,7 @@ export interface InterState {
     positions?: SearchPosition[];
     pointer?: SearchPosition;
     target?: string;
+    bright_dim?: boolean;
 }
 
 class InterPluginState {
@@ -53,11 +57,13 @@ class InterPluginState {
         this.state = {
             plugin_draw_observers: [],
             plugin_draw_callback: function () {
-                if (!this.plugin_draw_observers || this.plugin_draw_observers.length <= 0)
+                if (
+                    !this.plugin_draw_observers ||
+                    this.plugin_draw_observers.length <= 0
+                )
                     return;
-                for (let observer of this.plugin_draw_observers)
-                    observer?.fn();
-            }
+                for (let observer of this.plugin_draw_observers) observer?.fn();
+            },
         };
     }
 

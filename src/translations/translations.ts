@@ -48,6 +48,9 @@ export interface Translations {
     readonly not_found_msg_desc: string;
     readonly dim_editor_style: string;
     readonly dim_editor_style_desc: string;
+    readonly bright_dim: string;
+    readonly bright_dim_desc: string;
+    readonly bright_dim_style: string;
     readonly convert_utf8: string;
     readonly convert_utf8_desc: string;
     readonly auto_jump: string;
@@ -59,7 +62,7 @@ export interface Translations {
     readonly capitalize_tags_desc: string;
     readonly jump_to_word_end: string;
     readonly jump_to_word_end_desc: string;
-    readonly reset: string
+    readonly reset: string;
     readonly reset_defaults: string;
     readonly command_toggle: string;
     readonly command_word_start: string;

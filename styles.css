@@ -100,13 +100,35 @@
 }
 
 @keyframes blaze-jump-content-pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+    100% {
+        opacity: 1;
+    }
 }
 
 @keyframes blaze-jump-pulse-pointer {
-    0% { opacity: 0; }
-    50% { opacity: 1; }
-    100% { opacity: 0; visibility: hidden; }
+    0% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
+.blaze-jump-bright-match {
+    color: var(--text-normal) !important;
+    opacity: 1 !important;
+    border-radius: 3px;
+    filter: brightness(1.5);
+    font-weight: bold;
+    text-shadow: 0 0 5px var(--text-accent);
 }
